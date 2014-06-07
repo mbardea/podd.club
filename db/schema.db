@@ -1,0 +1,15 @@
+create table categories (
+    id serial primary key,
+    name varchar(255) not null);
+
+create table podcasts (
+    id serial primary key,
+    category_id int references categories(id),
+    title varchar(255) not null,
+    description text not null,
+    location varchar(255) not null,
+    created_on timestamp with time zone not null default CURRENT_DATE,
+    downloads int default 0
+    );
+
+
