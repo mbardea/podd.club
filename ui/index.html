@@ -47,7 +47,7 @@
             <!-- <li><a href="#">Help</a></li> -->
           </ul>
           <form class="navbar-form navbar-right">
-            <input type="text" class="form-control" placeholder="Search...">
+            <input type="text" ng-model="searchText" class="form-control" placeholder="Search name...">
           </form>
         </div>
       </div>
@@ -63,14 +63,12 @@
 		        </li>
 		    
             <li>
-
               <div class="input-group">
                 <input type="text" class="form-control" name="newCategory" ng-model="newCategory" required >
                 <span class="input-group-btn">
                   <button class="btn btn-default" type="button" ng-disabled="addCategoryForm.$invalid" ng-click="addCategory()">Go!</button>
                 </span>
               </div>
-
             </li>
           </ul>          
         </div>
@@ -95,8 +93,16 @@
 
                   <div class="modal-body">
 
+                    <b>Name:</b>
+                    <br />
                     <input type="text" name="newPodcastName" ng-model="newPodcastName" required />
+                    <br />
+                    <b>Author:</b>
+                    <br />
                     <input type="text" name="newPodcastAuthor" ng-model="newPodcastAuthor" required />
+                    <br />
+                    <b>URL:</b>
+                    <br />
                     <input type="text" name="newPodcastURL" ng-model="newPodcastURL" required />
                     <!--Put textboxes here-->
 
@@ -124,7 +130,7 @@
                 </tr>
               </thead>
               <tbody ng-repeat="category in categories | filter: {name:currentCategory}">
-                <tr ng-repeat="podcast in category.podcasts">
+                <tr ng-repeat="podcast in category.podcasts | filter:searchText">
                   <td>{{ podcast.episodeNumber }}</td>
                   <td>{{ podcast.name }}</td>
                   <td>{{ podcast.author }}</td>
