@@ -63,16 +63,14 @@
 		        </li>
 		    
             <li>
+
               <div class="input-group">
+                <input type="text" class="form-control" name="newCategory" ng-model="newCategory" required >
+                <span class="input-group-btn">
+                  <button class="btn btn-default" type="button" ng-disabled="addCategoryForm.$invalid" ng-click="addCategory()">Go!</button>
+                </span>
+              </div>
 
-                  <div class="input-group">
-                    <input type="text" class="form-control" name="newCategory" ng-model="newCategory" required >
-                    <span class="input-group-btn">
-                      <button class="btn btn-default" type="button" ng-disabled="addCategoryForm.$invalid" ng-click="addCategory()">Go!</button>
-                    </span>
-                  </div>
-
-              </div><!-- /input-group -->
             </li>
           </ul>          
         </div>
@@ -80,8 +78,40 @@
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
           <h1 class="page-header">{{ currentCategory }}</h1>
 
-          <button type="button" class="btn btn-default">+</button>
 
+          <!-- Button trigger modal -->
+          <button class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal">
+            Add Podcast
+          </button>
+
+          <!-- Modal -->
+          <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                  <h4 class="modal-title" id="myModalLabel">Add podcast</h4>
+                </div>
+
+                  <div class="modal-body">
+
+                    <input type="text" name="newPodcastName" ng-model="newPodcastName" required />
+                    <input type="text" name="newPodcastAuthor" ng-model="newPodcastAuthor" required />
+                    <input type="text" name="newPodcastURL" ng-model="newPodcastURL" required />
+                    <!--Put textboxes here-->
+
+                  </div>
+                  <div class="modal-footer">
+                    <!--Put submit and cancel buttons here-->
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" ng-click="addPodcast()" class="btn btn-primary" data-dismiss="modal">Save changes</button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          </div>
+            
           <div class="table-responsive">
             <table class="table table-striped">
               <thead>

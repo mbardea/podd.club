@@ -24,6 +24,17 @@ poddclubApp.controller('CategoryListCtrl', function ($scope) {
 	  $scope.newCategory = ''
   }
 
+  $scope.addPodcast = function(){
+    for (category in $scope.categories){
+      if ($scope.categories[category]['name'] === $scope.currentCategory){
+        $scope.categories[category]['podcasts'].push({'name':$scope.newPodcastName,'episodeNumber':0,'author':$scope.newPodcastAuthor,'length':'900s','url':$scope.newPodcastURL})
+        $scope.newPodcastName = ''
+        $scope.newPodcastAuthor = ''
+        $scope.newPodcastURL = ''
+      }
+    }
+  }
+
   // $scope.addPodcast = function(){
   //   for (var category in $scope.categories){
   //     var podcasts = category['podcasts']
