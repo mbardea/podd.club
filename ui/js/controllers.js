@@ -24,6 +24,14 @@ poddclubApp.controller('CategoryListCtrl', function ($scope) {
 	  $scope.newCategory = ''
   }
 
+  // $scope.addPodcast = function(){
+  //   for (var category in $scope.categories){
+  //     var podcasts = category['podcasts']
+  //     podcasts.push({'name':'new','episodeNumber':333,'author':'whoKnows','lenght':'90s','url':$scope.newPodcastURL}
+  //     $scope.newPodcastUrl = ''
+  //   }
+  // }
+
   $scope.changeCurrentCategory = function(name){
     $scope.currentCategory = name
   }
