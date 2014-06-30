@@ -63,10 +63,16 @@
 		        </li>
 		    
             <li>
-              <form name="addCategoryForm" ng-submit="addCategory()">
-                <input type="text" name="newCategory" ng-model="newCategory" required />
-                <button ng-disabled="addCategoryForm.$invalid">Add</button>
-              </form>
+              <div class="input-group">
+
+                  <div class="input-group">
+                    <input type="text" class="form-control" name="newCategory" ng-model="newCategory" required >
+                    <span class="input-group-btn">
+                      <button class="btn btn-default" type="button" ng-disabled="addCategoryForm.$invalid" ng-click="addCategory()">Go!</button>
+                    </span>
+                  </div>
+
+              </div><!-- /input-group -->
             </li>
           </ul>          
         </div>
