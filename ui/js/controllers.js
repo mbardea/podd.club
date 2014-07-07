@@ -14,7 +14,7 @@ poddclubApp.controller('CategoryListCtrl', function ($scope) {
   ];
   
   $scope.addCategory = function(){
-	  $scope.categories.push({'name':$scope.newCategory})
+	  $scope.categories.push({'name':$scope.newCategory,'podcasts':[]})
 	  $scope.newCategory = ''
   }
 
