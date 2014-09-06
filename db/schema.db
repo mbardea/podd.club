@@ -1,18 +1,28 @@
+create table users (
+    id serial primary key unique,
+    name varchar(255),
+    email varchar(255),
+    password varchar(255));
+
 create table categories (
     id serial primary key unique,
-    name varchar(255) not null);
+    user_id int references users(id),
+    name varchar(255) not null
+    );
 
 create table podcasts (
     id serial primary key unique,
+    user_id int references users(id),
     category_id int references categories(id),
     title varchar(255) not null,
     description text not null,
+    duration int not null,
     created_on timestamp with time zone not null default CURRENT_DATE,
     downloads int default 0,
     download_metadata text
     );
 
-grant all on all tables in schema public to poddpadd;
-grant all on all sequences in schema public to poddpadd;
+grant all on all tables in schema public to podd;
+grant all on all sequences in schema public to podd;
 
 

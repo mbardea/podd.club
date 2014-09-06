@@ -1,8 +1,6 @@
 var poddclubApp = angular.module('poddclubApp', []);
 
-poddclubApp.controller('CategoryListCtrl', function ($scope) {
-
-  $scope.currentCategory = "Tech";
+poddclubApp.controller('CategoryListCtrl', function ($scope, $http, $sce) {
 
   $scope.categories = [
     {'name': 'Tech',
@@ -12,27 +10,79 @@ poddclubApp.controller('CategoryListCtrl', function ($scope) {
     {'name': 'Astrophysics',
      'podcasts':[{'name':'Astro1','episodeNumber':42,'author':'Neil deGrasse Tyson','length':'800s','url':'http://www.youtube.com/blahblah'},{'name':'Astro2','episodeNumber':34,'author':'Neil deGrasse Tyson','length':'700s','url':'http://www.youtube.com/blahblah'}] },
   ];
-  
+
+  $scope.loadCategories = function(userId) {
+      $http.get('/api/users/1/categories').
+          success(function(data) {
+            $scope.categories = data;
+            if ($scope.categories.length >= 1) {
+                $scope.currentCategory = $scope.categories[0];
+                $scope.loadPodcasts(userId, $scope.categories[0].id);
+            }
+            else {
+                $scope.currentCategory = null;
+            }
+          });
+  }
+
+  $scope.loadPodcasts = function(userId, categoryId) {
+      $http.get('/api/users/' + userId + '/categories/' + categoryId + '/podcasts').
+          success(function(data) {
+            $scope.podcasts = data;
+          });
+  }
+
   $scope.addCategory = function(){
-	  $scope.categories.push({'name':$scope.newCategory,'podcasts':[]})
-	  $scope.newCategory = ''
+    var apiUrl = "/api/users/" + $scope.userId + "/categories";
+    var newCategory = $scope.newCategory;
+    $http({
+        method: 'POST',
+        url: apiUrl,
+        data: $.param({name: newCategory}),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+    }).success(function() {
+        $scope.newCategory = "";
+        $scope.loadCategories($scope.userId);
+    });
   }
 
-  $scope.addPodcast = function(){
-    for (category in $scope.categories){
-      if ($scope.categories[category]['name'] === $scope.currentCategory){
-        $scope.categories[category]['podcasts'].push({'name':$scope.newPodcastName,'episodeNumber':0,'author':$scope.newPodcastAuthor,'length':'900s','url':$scope.newPodcastURL})
-        $scope.newPodcastName = ''
-        $scope.newPodcastAuthor = ''
-        $scope.newPodcastURL = ''
-      }
+  $scope.scheduleDownload = function(userId, categoryId, url) {
+    var apiUrl = "/api/users/" + userId + "/categories/" + categoryId + "/schedule-download";
+
+    $http({
+        method: 'POST',
+        url: apiUrl,
+        data: $.param({url: url}),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+    })
+
+    $scope.newPodcastUrl = "";
+  }
+
+  $scope.setCurrentCategory = function(category){
+    $scope.currentCategory = category;
+    $scope.loadPodcasts($scope.userId, category.id);
+  }
+
+  $scope.rssLink = function(category) {
+    return $sce.trustAsHtml('/rss/' + category.id);
+  }
+
+  $scope.formatDuration = function(duration) {
+    function zeroPad(num, places) {
+      var zero = places - num.toFixed(0).toString().length + 1;
+      return Array(+(zero > 0 && zero)).join("0") + num;
     }
-  }
-
-  $scope.changeCurrentCategory = function(name){
-    $scope.currentCategory = name
+    var hours = Math.floor(duration / 60);
+    minutes = duration - hours * 60;
+    var s = zeroPad(hours, 2) 
+    + ":"
+    + zeroPad(minutes, 2);
+    return s;
   }
 
   $scope.removeCategory = function(){}
-  
+
+  $scope.userId = 1;
+  $scope.loadCategories($scope.userId);
 });

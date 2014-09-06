@@ -1,5 +1,6 @@
-insert into categories(id, name)
-    values(1, 'Databases');
+insert into users(id, name, email)
+    values(1, 'Default', 'default@example.com');
 
-insert into podcasts(category_id, title, description, location)
-    values(1, 'Using Mongodb', 'Mongo DB presentation', 'podcasts/mongo/mongo.mp3');
+insert into categories(id, user_id, name)
+    values(1, 1, 'Databases');
+

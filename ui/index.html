@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="shortcut icon" href="../../assets/ico/favicon.ico">
+    <link rel="shortcut icon" href="favicon.ico">
+
+    <link href="font-awesome-4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
     <title>Podd.club</title>
 
@@ -25,6 +27,7 @@
       <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
   </head>
+
 
   <body ng-controller="CategoryListCtrl">
 
@@ -53,34 +56,49 @@
       </div>
     </div>
 
+
     <div class="container-fluid">
       <div class="row">
         <div class="col-sm-3 col-md-2 sidebar">
           <ul class="nav nav-sidebar">
 
             <li ng-repeat="category in categories">
-		          <a href="" ng-click="changeCurrentCategory(category.name)">{{category.name}} ({{category.podcasts.length}})</a>
-		        </li>
-		    
+              <a href="" ng-click="setCurrentCategory(category)">{{category.name}}</a>
+            </li>
             <li>
-              <div class="input-group">
-                <input type="text" class="form-control" name="newCategory" ng-model="newCategory" required >
-                <span class="input-group-btn">
-                  <button class="btn btn-default" type="button" ng-disabled="addCategoryForm.$invalid" ng-click="addCategory()">Go!</button>
-                </span>
-              </div>
+              <a href="">
+                <div class="input-group">
+                  <input type="text" class="form-control" name="newCategory" ng-model="newCategory">
+                  <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" ng-click="addCategory()">Add</button>
+                  </span>
+                </div>
+              </a>
             </li>
           </ul>          
         </div>
         
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-          <h1 class="page-header">{{ currentCategory }}</h1>
+          <h3 class="page-header">
+              {{currentCategory.name}}
+              <a href="{{rssLink(currentCategory)}}"><span style="color: orange" class="fa fa-rss"></span></a>
+            </h3>
 
+          <div class="form form-inline">
+            <div class="form-group">
+              <input type="text" size="80" class="form-control" ng-model="newPodcastUrl" placeholder="YouTube URL to download" />
+            </div>
+            <div class="form-group">
+              <button class="btn btn-mini btn-primary" ng-click="scheduleDownload(1, currentCategory.id, newPodcastUrl)">
+                Schedule Download
+              </button>
+            </div>
+          </div>
 
           <!-- Button trigger modal -->
-          <button class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal">
-            Add Podcast
-          </button>
+          <!-- <button class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal"> -->
+          <!--   Add Podcast -->
+          <!-- </button> -->
 
           <!-- Modal -->
           <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -93,17 +111,17 @@
 
                   <div class="modal-body">
 
+                    <!-- <div class="form-group"> -->
+                    <!--   <b>Name:</b> -->
+                    <!--   <input type="text" class="form-control" name="newPodcastName" ng-model="newPodcastName" required /> -->
+                    <!-- </div> -->
+                    <!-- <div class="form-group"> -->
+                    <!--   <b>Author:</b> -->
+                    <!--   <input type="text" class="form-control" name="newPodcastAuthor" ng-model="newPodcastAuthor" required /> -->
+                    <!-- </div> -->
                     <div class="form-group">
-                      <b>Name:</b>
-                      <input type="text" class="form-control" name="newPodcastName" ng-model="newPodcastName" required />
-                    </div>
-                    <div class="form-group">
-                      <b>Author:</b>
-                      <input type="text" class="form-control" name="newPodcastAuthor" ng-model="newPodcastAuthor" required />
-                    </div>
-                    <div class="form-group">
-                      <b>URL:</b>
-                      <input type="text" class="form-control" name="newPodcastURL" ng-model="newPodcastURL" required />
+                      <b>Url:</b>
+                      <input type="text" class="form-control" name="newPodcastUrl" ng-model="newPodcastUrl" required />
                     </div>
                       <!--Put textboxes here-->
 
@@ -111,39 +129,54 @@
                   <div class="modal-footer">
                     <!--Put submit and cancel buttons here-->
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                    <button type="button" ng-click="addPodcast()" class="btn btn-primary" data-dismiss="modal">Save changes</button>
+                    <button type="button" ng-click="scheduleDownload(1, currentCategory.id, newPodcastUrl)" class="btn btn-primary" data-dismiss="modal">Schedule Download</button>
                   </div>
                 </form>
 
               </div>
             </div>
           </div>
-            
+
           <div class="table-responsive">
             <table class="table table-striped">
               <thead>
                 <tr>
                   <th>Podcast #</th>
                   <th>Name</th>
-                  <th>Author</th>
-                  <th>Length</th>
-                  <th>URL</th>
+                  <th>Duration</th>
+                  <th>Download</th>
                 </tr>
               </thead>
-              <tbody ng-repeat="category in categories | filter: {name:currentCategory}">
-                <tr ng-repeat="podcast in category.podcasts | filter:searchText">
-                  <td>{{ podcast.episodeNumber }}</td>
-                  <td>{{ podcast.name }}</td>
-                  <td>{{ podcast.author }}</td>
-                  <td>{{ podcast.length }}</td>
-                  <td>{{ podcast.url }}</td>
-                </tr>
-              </tbody>
+              <tr ng-repeat="podcast in podcasts">
+                <td>{{ podcast.id }}</td>
+                <td>{{ podcast.title }}</td>
+                <!-- <td>{{ podcast.author }}</td> -->
+                <td>{{ formatDuration(podcast.duration) }}</td>
+                <!-- <td>{{ podcast.url }}</td> -->
+                <td>
+                    <a class="button" href="/api/podcasts/{{podcast.id}}/download" target="blank_">
+                        <span class="fa-2x glyphicon glyphicon-download" title="Download"></span>
+                    </a>
+                </td>
+              </tr>
+              <!-- <tr> -->
+              <!--     <td> -->
+              <!--         <div> -->
+              <!--             Audio here: -->
+              <!--             <audio controls> -->
+              <!--             <source src="/api/podcasts/2001/download" type="audio/mpeg"> -->
+              <!--             Your browser does not support the audio element. -->
+              <!--             </audio>  -->
+              <!--         </div> -->
+              <!--     </td>  -->
+              <!-- </tr> -->
             </table>
           </div>
         </div>
       </div>
     </div>
+
+
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
