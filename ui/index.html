@@ -16,7 +16,7 @@
     <link href="css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="css/dashboard.css" rel="stylesheet">
+    <!-- <link href="css/dashboard.css" rel="stylesheet"> -->
 
     <!-- Just for debugging purposes. Don't actually copy this line! -->
     <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
@@ -28,18 +28,21 @@
     <![endif]-->
   </head>
 
+  <style>
+    .align-right {
+      text-align: right;
+    }
+    .menu-active {
+      background-color: #f7f7f7;
+    }
+  </style>
+
 
   <body ng-controller="CategoryListCtrl">
 
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
+    <div class="container-fluid">
+      <div class="navbar navbar-inverse" role="navigation">
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
           <a class="navbar-brand" href="#">Podd.club</a>
         </div>
         <div class="navbar-collapse collapse">
@@ -49,21 +52,18 @@
             <!-- <li><a href="#">Profile</a></li> -->
             <!-- <li><a href="#">Help</a></li> -->
           </ul>
-          <form class="navbar-form navbar-right">
-            <input type="text" ng-model="searchText" class="form-control" placeholder="Search...">
-          </form>
+          <!-- <form class="navbar-form navbar-right"> -->
+            <!--   <input type="text" ng-model="searchText" class="form-control" placeholder="Search..."> -->
+            <!-- </form> -->
         </div>
       </div>
-    </div>
-
-
-    <div class="container-fluid">
       <div class="row">
-        <div class="col-sm-3 col-md-2 sidebar">
+        <div class="col-sm-2 sidebar">
           <ul class="nav nav-sidebar">
 
             <li ng-repeat="category in categories">
-              <a href="" ng-click="setCurrentCategory(category)">{{category.name}}</a>
+            <a href="" ng-class="(category.id == currentCategory.id) ? 'menu-active' : ''" ng-click="setCurrentCategory(category)">{{category.name}}
+            </a>
             </li>
             <li>
               <a href="">
@@ -78,8 +78,8 @@
           </ul>          
         </div>
         
-        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-          <h3 class="page-header">
+        <div class="col-sm-10 main">
+          <h3 class="page-header" style="margin:10px">
               {{currentCategory.name}}
               <a href="{{rssLink(currentCategory)}}"><span style="color: orange" class="fa fa-rss"></span></a>
             </h3>
@@ -143,7 +143,7 @@
                 <tr>
                   <th>Podcast #</th>
                   <th>Name</th>
-                  <th>Duration</th>
+                  <th class="align-right">Duration</th>
                   <th>Download</th>
                 </tr>
               </thead>
@@ -151,10 +151,10 @@
                 <td>{{ podcast.id }}</td>
                 <td>{{ podcast.title }}</td>
                 <!-- <td>{{ podcast.author }}</td> -->
-                <td>{{ formatDuration(podcast.duration) }}</td>
+                <td class="align-right">{{ formatDuration(podcast.duration) }}</td>
                 <!-- <td>{{ podcast.url }}</td> -->
                 <td>
-                    <a class="button" href="/api/podcasts/{{podcast.id}}/download" target="blank_">
+                    <a class="button" href="/api/podcasts/{{podcast.id}}/download">
                         <span class="fa-2x glyphicon glyphicon-download" title="Download"></span>
                     </a>
                 </td>

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,122 +14,46 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/go-martini/martini"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	"github.com/martini-contrib/render"
 	"github.com/mbardea/podd.club/logger"
+	"github.com/mbardea/podd.club/model"
+	"github.com/mbardea/podd.club/rss"
 	"github.com/mbardea/podd.club/util"
 )
-
-var rssTemplate = `{{ $host := .Host }}<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/DTDs/Podcast-1.0.dtd" xmlns:media="http://search.yahoo.com/mrss/">
-
-<channel>
-<title>{{.Category.Name}}</title>
-<description>Custom Podcast feeds from YouTube</description>
-<itunes:author>Manuel Bardea, Paul Bardea</itunes:author>
-<link>http://{{.Host}}</link>
-<itunes:image href="http://{{.Host}}/poddclub.png" />
-<pubDate>Fri, 05 Sep 2014 21:00:00 EST </pubDate>
-<language>en-us</language>
-<copyright>Original Authors</copyright>
-
-{{range $podcast := .Podcasts}}
-	<item>
-		<title>{{$podcast.Title}}</title>
-		<description></description>
-		<itunes:author></itunes:author>
-		<pubDate>Fri, 05 Sep 2014 21:00:00 EST</pubDate>
-		<enclosure url="http://{{$host}}/api/podcasts/{{$podcast.Id}}/download" length="{{$podcast.Duration}}" type="audio/mpeg" /> 
-	</item>
-{{end}}
-</channel>
-</rss>
-`
-
-type Category struct {
-	Id     int64  `primaryKey:"yes" json:"id"`
-	UserId int64  `json:"user_id"`
-	Name   string `json:"name"`
-}
-
-func (c Category) TableName() string {
-	return "categories"
-}
-
-type Podcast struct {
-	Id               int64 `json: "id" primaryKey:"yes"`
-	UserId           int64 `json:"user_id"`
-	CategoryId       int64
-	Title            string `json:"title"`
-	Description      string
-	Duration         int `json:"duration"`
-	DownloadMetadata string
-}
-
-type SimplePodcast struct {
-	Id         int64  `json:"id" primaryKey:"yes"`
-	UserId     int64  `json:"user_id"`
-	CategoryId int64  `json:"category_id"`
-	Title      string `json:"title"`
-	Duration   int    `json:"duration"`
-}
-
-func (SimplePodcast) TableName() string {
-	return "podcasts"
-}
-
-type User struct {
-	Id       int64 `primaryKey:"yes"`
-	Name     string
-	Email    string
-	Password string
-}
-
-type SimpleUser struct {
-	Id    int64 `primaryKey:"yes"`
-	Name  string
-	Email string
-}
-
-func (SimpleUser) TableName() string {
-	return "users"
-}
-
-func testDb(db *gorm.DB) {
-	db.LogMode(true)
-	var cat Category
-	db.First(&cat, 1)
-
-	fmt.Printf("RSS here: User: %v \n", cat)
-}
-
-type MyBuffer struct {
-}
-
-type DownloadMeta struct {
-	Title       string
-	Description string
-	Duration    int
-}
-
-type DownloadJob struct {
-	UserId     int64
-	CategoryId int64
-	Url        string
-	Db         *gorm.DB
-	err        error
-}
 
 // type DownloadRequest struct {
 // 	Url string
 // }
 //
 
-func downloadWorker(job *DownloadJob) {
+func testDb(db *gorm.DB) {
+	db.LogMode(true)
+	var cat model.Category
+	db.First(&cat, 1)
+
+	fmt.Printf("RSS here: User: %v \n", cat)
+}
+
+func runCommand(cmd *exec.Cmd) (bytes.Buffer, bytes.Buffer, error) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	stdout.Grow(1000)
+	stderr.Grow(1000)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		logger.Errorf("Command failed: %v", cmd)
+	}
+	return stdout, stderr, err
+}
+
+func downloadWorker(job *model.DownloadJob) {
 	url := job.Url
 	db := job.Db
 
@@ -140,24 +65,29 @@ func downloadWorker(job *DownloadJob) {
 		log.Panicf("Could not create temporary directory")
 	}
 	name := path.Join(tmpDir, "audio")
-	audioFileName := name + ".m4a"
+	origAudioFile := name + ".m4a"
+	convertedAudioFile := name + ".mp3"
 	metaFileName := path.Join(tmpDir, "audio.info.json")
 
 	cmd := exec.Command("youtube-dl",
 		"-x", "--audio-format=m4a",
-		"-o", audioFileName,
+		"-o", origAudioFile,
 		"--write-info-json", url)
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	stdout.Grow(1000)
-	stderr.Grow(1000)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
+	_, stderr, err := runCommand(cmd)
 	if err != nil {
 		log.Printf("Download Failed: %s: %s, %s", url, err, stderr.String())
+		return
+	}
+
+	cmd = exec.Command("avconv",
+		"-i", origAudioFile,
+		"-b", "64k",
+		convertedAudioFile)
+
+	_, stderr, err = runCommand(cmd)
+	if err != nil {
+		log.Printf("MP3 Conversion failed: %s - %s: %s", convertedAudioFile, err, stderr.String())
 		return
 	}
 
@@ -168,19 +98,20 @@ func downloadWorker(job *DownloadJob) {
 		log.Printf("Could not read file %s", metaFile)
 		return
 	}
-	var downloadMeta DownloadMeta
+	var downloadMeta model.DownloadMeta
 	err = json.Unmarshal(metaBuffer, &downloadMeta)
 	if err != nil {
 		log.Printf("Could not parse download meta Json")
 		return
 	}
 
-	podcast := Podcast{
+	podcast := model.Podcast{
 		UserId:           job.UserId,
 		CategoryId:       job.CategoryId,
 		Title:            downloadMeta.Title,
 		Description:      downloadMeta.Description,
 		Duration:         downloadMeta.Duration,
+		Thumbnail:        downloadMeta.Thumbnail,
 		DownloadMetadata: string(metaBuffer)}
 
 	db.Save(&podcast)
@@ -191,9 +122,9 @@ func downloadWorker(job *DownloadJob) {
 	if err != nil {
 		log.Printf("Could not create directory %s", filePath)
 	}
-	fileName := fmt.Sprintf("%d.m4a", podcast.Id)
+	fileName := fmt.Sprintf("%d.mp3", podcast.Id)
 	newAudioFileName := path.Join(filePath, fileName)
-	err = os.Rename(audioFileName, newAudioFileName)
+	err = os.Rename(convertedAudioFile, newAudioFileName)
 	if err != nil {
 		log.Printf("Could not move media file into %s", newAudioFileName)
 		return
@@ -228,7 +159,7 @@ func main() {
 	})
 
 	m.Get("/rss/:category_id", func(w http.ResponseWriter, p martini.Params, r render.Render, db *gorm.DB) {
-		var category Category
+		var category model.Category
 		id := string(p["category_id"])
 		query := db.First(&category, id)
 		if query.Error != nil {
@@ -237,7 +168,7 @@ func main() {
 			return
 		}
 
-		var podcasts []Podcast = []Podcast{}
+		var podcasts []model.Podcast = []model.Podcast{}
 		query = db.Where("user_id = ? and category_id = ?", category.UserId, category.Id).Find(&podcasts)
 		if query.Error != nil && !query.RecordNotFound() {
 			logger.Errorf("Error: %v", query.Error)
@@ -245,20 +176,15 @@ func main() {
 			return
 		}
 
-		type Rss struct {
-			Host     string
-			Category Category
-			Podcasts []Podcast
-		}
-		rss := &Rss{
-			Host:     "192.168.0.10:3000",
+		templateArgs := &rss.Rss{
+			Host:     "podd.club",
+			Header:   template.HTML(`<?xml version="1.0" encoding="utf-8"?>`),
 			Category: category,
 			Podcasts: podcasts,
 		}
-		templ := template.Must(template.New("rss").Parse(rssTemplate))
 		r.Header().Add("Content-Type", "application/rss+xml")
 		r.Status(http.StatusOK)
-		err := templ.Execute(w, rss)
+		rss.Execute(w, templateArgs)
 		if err != nil {
 			logger.Errorf("Cannot execute RSS template: %s", err)
 			r.Status(http.StatusInternalServerError)
@@ -267,13 +193,13 @@ func main() {
 	})
 
 	m.Get("/api/users", func(p martini.Params, r render.Render, db *gorm.DB) {
-		var users []SimpleUser
+		var users []model.SimpleUser
 		db.Find(&users)
 		r.JSON(200, users)
 	})
 
 	m.Get("/api/users/:user_id/categories", func(p martini.Params, r render.Render, db *gorm.DB) {
-		var categories []Category
+		var categories []model.Category
 		userId := string(p["user_id"])
 		query := db.Where("user_id = ?", userId).Find(&categories)
 		if query.Error != nil {
@@ -288,7 +214,7 @@ func main() {
 		userId, _ := strconv.ParseInt(p["user_id"], 10, 64)
 		name := req.PostFormValue("name")
 
-		var category = &Category{UserId: userId, Name: name}
+		var category = &model.Category{UserId: userId, Name: name}
 		db.Save(category)
 		r.JSON(200, "")
 	})
@@ -296,7 +222,7 @@ func main() {
 	m.Get("/api/users/:user_id/categories/:category_id/podcasts", func(p martini.Params, r render.Render, db *gorm.DB) {
 		userId := string(p["user_id"])
 		categoryId := string(p["category_id"])
-		var podcasts []SimplePodcast = []SimplePodcast{}
+		var podcasts []model.SimplePodcast = []model.SimplePodcast{}
 		query := db.Where("user_id = ? and category_id = ?", userId, categoryId).Find(&podcasts)
 		if query.Error != nil && !query.RecordNotFound() {
 			logger.Errorf("Error: %v", query.Error)
@@ -308,7 +234,7 @@ func main() {
 
 	m.Get("/api/podcasts/:podcast_id", func(p martini.Params, r render.Render, db *gorm.DB) {
 		podcastId := string(p["podcast_id"])
-		var podcast SimplePodcast
+		var podcast model.SimplePodcast
 		query := db.Where("id = ? ", podcastId).Find(&podcast)
 		if query.Error != nil {
 			logger.Errorf("Error: %v", query.Error)
@@ -321,7 +247,7 @@ func main() {
 	m.Get("/api/podcasts/:podcast_id/download", func(p martini.Params, req *http.Request, w http.ResponseWriter, r render.Render, db *gorm.DB) {
 		podcastId := string(p["podcast_id"])
 
-		var podcast Podcast
+		var podcast model.Podcast
 		query := db.Where("id = ? ", podcastId).Find(&podcast)
 		if query.Error != nil {
 			logger.Errorf("Podcast not found: %s", err)
@@ -333,9 +259,9 @@ func main() {
 		for k, v := range req.Header {
 			headers = headers + fmt.Sprintf("%s: %s\n", k, v)
 		}
-		logger.Errorf("Headers: %s", headers)
+		logger.Infof("Headers: %s", headers)
 
-		fileName := fmt.Sprintf("media/1/%s.m4a", podcastId)
+		fileName := fmt.Sprintf("media/1/%s.mp3", podcastId)
 		file, err := os.Open(fileName)
 		if err != nil {
 			logger.Errorf("Cannot open file: %s. %s", fileName, err)
@@ -353,9 +279,9 @@ func main() {
 
 		var startPos int64 = 0
 		var endPos int64 = stat.Size()
-		startPos, endPos = util.ParseRangeHeader(&req.Header, startPos, endPos)
+		hasRangeHeader, startPos, endPos := util.ParseRangeHeader(&req.Header, startPos, endPos)
 
-		logger.Infof("Range request received: %v", startPos, endPos)
+		logger.Infof("Serving range: %v", startPos, endPos)
 
 		_, err = file.Seek(startPos, os.SEEK_SET)
 		if err != nil {
@@ -365,10 +291,19 @@ func main() {
 		}
 
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", endPos-startPos))
-		w.Header().Add("Cache-Control", "private")
-		w.Header().Add("Pragma", "private")
-		w.Header().Add("X-Content-Duration", strconv.Itoa(podcast.Duration))
-		w.Header().Add("Content-Type", "audio/mp4")
+		// w.Header().Add("Cache-Control", "private")
+		// w.Header().Add("Pragma", "private")
+		w.Header().Add("Content-Type", "audio/mpeg")
+		w.Header().Add("Last-Modified", "Wed, 03 Sep 2014 19:44:10 GMT")
+
+		w.Header().Add("Accept-Ranges", "bytes")
+		// w.Header().Add("X-Content-Duration", strconv.Itoa(podcast.Duration))
+		if hasRangeHeader {
+			w.Header().Add("Content-Range", fmt.Sprintf(" bytes %d-%d/%d", startPos, endPos, stat.Size()))
+			r.Status(http.StatusPartialContent)
+		} else {
+			// w.Header().Add("X-Content-Duration", strconv.Itoa(podcast.Duration))
+		}
 
 		io.CopyN(w, file, endPos-startPos)
 	})
@@ -384,7 +319,7 @@ func main() {
 			return http.StatusBadRequest, "Invalid URL"
 		}
 
-		job := &DownloadJob{
+		job := &model.DownloadJob{
 			UserId:     userId,
 			CategoryId: categoryId,
 			Url:        url,

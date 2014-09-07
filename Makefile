@@ -1,0 +1,2 @@
+podd.club: 
+	go build

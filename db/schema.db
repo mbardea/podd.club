@@ -17,6 +17,7 @@ create table podcasts (
     title varchar(255) not null,
     description text not null,
     duration int not null,
+    thumbnail varchar(255) not null,
     created_on timestamp with time zone not null default CURRENT_DATE,
     downloads int default 0,
     download_metadata text
@@ -24,5 +25,6 @@ create table podcasts (
 
 grant all on all tables in schema public to podd;
 grant all on all sequences in schema public to podd;
+
 
 

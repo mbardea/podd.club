@@ -73,11 +73,17 @@ poddclubApp.controller('CategoryListCtrl', function ($scope, $http, $sce) {
       var zero = places - num.toFixed(0).toString().length + 1;
       return Array(+(zero > 0 && zero)).join("0") + num;
     }
-    var hours = Math.floor(duration / 60);
-    minutes = duration - hours * 60;
-    var s = zeroPad(hours, 2) 
-    + ":"
-    + zeroPad(minutes, 2);
+    var hours = Math.floor(duration / 3600);
+    duration -= hours * 3600
+    var minutes = Math.floor(duration / 60)
+    duration -= minutes * 60
+    var seconds = duration
+    var s = "";
+    if (hours > 0) {
+        s += zeroPad(hours, 2) + ":"
+    }
+    s += zeroPad(minutes, 2) + ":"
+    s += zeroPad(seconds, 2);
     return s;
   }
 

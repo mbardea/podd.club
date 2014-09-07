@@ -8,12 +8,14 @@ import (
 	"github.com/mbardea/podd.club/logger"
 )
 
-func ParseRangeHeader(headers *http.Header, origStartPos int64, origEndPos int64) (int64, int64) {
+func ParseRangeHeader(headers *http.Header, origStartPos int64, origEndPos int64) (bool, int64, int64) {
 	startPos := origStartPos
 	endPos := origEndPos
+	hasRangeHeader := false
 	// Check HTTP header in case it was a range request
 	rangeHeader := headers.Get("Range")
 	if rangeHeader != "" {
+		hasRangeHeader = true
 		// Example: "Range: [bytes=0-]"
 		reParser := regexp.MustCompile(".*\\[bytes=([0-9]+)-([0-9]*)\\].*")
 		match := reParser.FindStringSubmatch(rangeHeader)
@@ -31,5 +33,5 @@ func ParseRangeHeader(headers *http.Header, origStartPos int64, origEndPos int64
 		endPos = startPos
 	}
 
-	return startPos, endPos
+	return hasRangeHeader, startPos, endPos
 }
