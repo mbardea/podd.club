@@ -150,6 +150,15 @@ func downloadWorker(job *model.DownloadJob) {
 		log.Printf("Could not move meta file name to %s", newMetaFileName)
 		return
 	}
+
+	// Update the audio file size in the DB
+	stat, err := os.Stat(newAudioFileName)
+	if err != nil {
+		log.Printf("Could not read stas for audio file %s", newAudioFileName)
+		return
+	}
+	podcast.Size = stat.Size()
+	db.Save(&podcast)
 }
 
 func main() {

@@ -95,6 +95,10 @@ poddclubApp.controller('CategoryListCtrl', function ($scope, $http, $sce) {
     return s;
   }
 
+  $scope.formatSize = function(size) {
+    return "" + (size / (1024 * 1024)).toFixed(0) + " MB";
+  }
+
   $scope.removeCategory = function(){}
 
   $scope.userId = 1;

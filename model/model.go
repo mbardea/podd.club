@@ -20,6 +20,7 @@ type Podcast struct {
 	Title            string `json:"title"`
 	Description      string
 	Duration         int    `json:"duration"`
+	Size             int64  `json:"size"`
 	Thumbnail        string `json:thumbnail`
 	DownloadMetadata string
 }
@@ -35,6 +36,7 @@ type SimplePodcast struct {
 	SourceUrl  string `json:"source_url"`
 	Title      string `json:"title"`
 	Duration   int    `json:"duration"`
+	Size       int64  `json:"size"`
 }
 
 func (SimplePodcast) TableName() string {

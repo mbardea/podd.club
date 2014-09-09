@@ -141,9 +141,10 @@
             <table class="table table-striped">
               <thead>
                 <tr>
-                  <th>Podcast #</th>
+                  <th>Ref</th>
                   <th>Name</th>
                   <th class="align-right">Duration</th>
+                  <th class="align-right">Size</th>
                   <th>&nbsp;</th>
                 </tr>
               </thead>
@@ -156,6 +157,7 @@
                 </td>
                 <!-- <td>{{ podcast.author }}</td> -->
                 <td class="align-right">{{ formatDuration(podcast.duration) }}</td>
+                <td class="align-right">{{ formatSize(podcast.size) }}</td>
                 <!-- <td>{{ podcast.url }}</td> -->
                 <td>
                     <a class="button" href="/api/podcasts/{{podcast.id}}/download">
