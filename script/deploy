@@ -1,0 +1,24 @@
+!/bin/bash
+
+set -ex
+
+function cleanup {
+    popd
+}
+
+BASE_DIR=$(readlink -f $(dirname $0))/..
+pushd .
+
+trap cleanup EXIT
+
+cd $BASE_DIR
+go build
+
+rsync -avz $BASE_DIR/ui podd@podd.club:/var/www/podd.club
+
+ssh root@podd.club 'supervisorctl stop podd.club'
+scp $BASE_DIR/podd.club podd@podd.club:/var/www/podd.club/
+ssh root@podd.club 'supervisorctl start podd.club'
+
+
+
