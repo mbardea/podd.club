@@ -149,7 +149,11 @@
               </thead>
               <tr ng-repeat="podcast in podcasts">
                 <td>{{ podcast.id }}</td>
-                <td>{{ podcast.title }}</td>
+                <td>
+                    {{ podcast.title }}
+                    <br/>
+                    <a href="{{ podcast.source_url }}"> {{podcast.source_url}} </a>
+                </td>
                 <!-- <td>{{ podcast.author }}</td> -->
                 <td class="align-right">{{ formatDuration(podcast.duration) }}</td>
                 <!-- <td>{{ podcast.url }}</td> -->

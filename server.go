@@ -123,6 +123,7 @@ func downloadWorker(job *model.DownloadJob) {
 	podcast := model.Podcast{
 		UserId:           job.UserId,
 		CategoryId:       job.CategoryId,
+		SourceUrl:        job.Url,
 		Title:            downloadMeta.Title,
 		Description:      downloadMeta.Description,
 		Duration:         downloadMeta.Duration,

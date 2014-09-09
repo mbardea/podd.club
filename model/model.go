@@ -16,6 +16,7 @@ type Podcast struct {
 	Id               int64 `json: "id" primaryKey:"yes"`
 	UserId           int64 `json:"user_id"`
 	CategoryId       int64
+	SourceUrl        string
 	Title            string `json:"title"`
 	Description      string
 	Duration         int    `json:"duration"`
@@ -31,6 +32,7 @@ type SimplePodcast struct {
 	Id         int64  `json:"id" primaryKey:"yes"`
 	UserId     int64  `json:"user_id"`
 	CategoryId int64  `json:"category_id"`
+	SourceUrl  string `json:"source_url"`
 	Title      string `json:"title"`
 	Duration   int    `json:"duration"`
 }
