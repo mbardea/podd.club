@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -29,6 +28,22 @@ import (
 // 	Url string
 // }
 //
+
+const (
+	MEDIA_BASE_DIR = "media"
+)
+
+func mediaDirName(userId int64) string {
+	return path.Join(MEDIA_BASE_DIR, fmt.Sprintf("%d", userId))
+}
+
+func mediaAudioFileName(userId int64, podcastId int64) string {
+	return path.Join(mediaDirName(userId), fmt.Sprintf("%d.mp3", podcastId))
+}
+
+func mediaMetaFileName(userId int64, podcastId int64) string {
+	return path.Join(mediaDirName(userId), fmt.Sprintf("%d.json", podcastId))
+}
 
 func testDb(db *gorm.DB) {
 	db.LogMode(true)
@@ -117,21 +132,19 @@ func downloadWorker(job *model.DownloadJob) {
 	db.Save(&podcast)
 
 	// Move file in the media directory
-	filePath := path.Join("media", fmt.Sprintf("%d", podcast.UserId))
-	err = os.MkdirAll(filePath, os.ModePerm)
+	baseDir := mediaDirName(podcast.UserId)
+	err = os.MkdirAll(baseDir, os.ModePerm)
 	if err != nil {
-		log.Printf("Could not create directory %s", filePath)
+		log.Printf("Could not create directory %s", baseDir)
 	}
-	fileName := fmt.Sprintf("%d.mp3", podcast.Id)
-	newAudioFileName := path.Join(filePath, fileName)
+	newAudioFileName := mediaAudioFileName(podcast.UserId, podcast.Id)
 	err = os.Rename(convertedAudioFile, newAudioFileName)
 	if err != nil {
 		log.Printf("Could not move media file into %s", newAudioFileName)
 		return
 	}
-	newMetaFileName := path.Join(fmt.Sprintf("%d.json", podcast.Id))
-	newMetaFullPath := path.Join(filePath, newMetaFileName)
-	err = os.Rename(metaFileName, newMetaFullPath)
+	newMetaFileName := mediaMetaFileName(podcast.UserId, podcast.Id)
+	err = os.Rename(metaFileName, newMetaFileName)
 	if err != nil {
 		log.Printf("Could not move meta file name to %s", newMetaFileName)
 		return
@@ -178,7 +191,6 @@ func main() {
 
 		templateArgs := &rss.Rss{
 			Host:     "podd.club",
-			Header:   template.HTML(`<?xml version="1.0" encoding="utf-8"?>`),
 			Category: category,
 			Podcasts: podcasts,
 		}
@@ -242,6 +254,35 @@ func main() {
 			return
 		}
 		r.JSON(200, podcast)
+	})
+
+	m.Delete("/api/podcasts/:podcast_id", func(p martini.Params, r render.Render, db *gorm.DB) {
+		podcastId := string(p["podcast_id"])
+
+		podcast := &model.Podcast{}
+		query := db.Where("id = ? ", podcastId).Find(podcast)
+		if query.Error != nil {
+			r.Error(http.StatusNotFound)
+			return
+		}
+
+		audioFile := mediaAudioFileName(podcast.UserId, podcast.Id)
+		metaFile := mediaMetaFileName(podcast.UserId, podcast.Id)
+
+		query = db.Where("id = ? ", podcastId).Delete(podcast)
+		if query.Error != nil {
+			r.Error(http.StatusNotFound)
+			return
+		}
+		err := os.Remove(audioFile)
+		if err != nil {
+			logger.Errorf("Could not remove file %s", audioFile)
+		}
+		err = os.Remove(metaFile)
+		if err != nil {
+			logger.Errorf("Could not remove file %s", metaFile)
+		}
+		r.Error(http.StatusOK)
 	})
 
 	m.Get("/api/podcasts/:podcast_id/download", func(p martini.Params, req *http.Request, w http.ResponseWriter, r render.Render, db *gorm.DB) {

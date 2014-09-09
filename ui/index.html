@@ -144,7 +144,7 @@
                   <th>Podcast #</th>
                   <th>Name</th>
                   <th class="align-right">Duration</th>
-                  <th>Download</th>
+                  <th>&nbsp;</th>
                 </tr>
               </thead>
               <tr ng-repeat="podcast in podcasts">
@@ -156,6 +156,9 @@
                 <td>
                     <a class="button" href="/api/podcasts/{{podcast.id}}/download">
                         <span class="fa-2x glyphicon glyphicon-download" title="Download"></span>
+                    </a>
+                    <a href="javascript: void(0);" ng-click="deletePodcast(podcast.id)">
+                        <span class="fa-2x glyphicon glyphicon-trash" title="Delete"></span>
                     </a>
                 </td>
               </tr>

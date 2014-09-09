@@ -23,6 +23,10 @@ type Podcast struct {
 	DownloadMetadata string
 }
 
+func (Podcast) TableName() string {
+	return "podcasts"
+}
+
 type SimplePodcast struct {
 	Id         int64  `json:"id" primaryKey:"yes"`
 	UserId     int64  `json:"user_id"`

@@ -59,6 +59,14 @@ poddclubApp.controller('CategoryListCtrl', function ($scope, $http, $sce) {
     $scope.newPodcastUrl = "";
   }
 
+  $scope.deletePodcast = function(podcastId) {
+    var apiUrl = "/api/podcasts/" + podcastId;
+    $http.delete(apiUrl)
+        .success(function() {
+            $scope.loadPodcasts($scope.userId, $scope.currentCategory.id)
+        })
+  }
+
   $scope.setCurrentCategory = function(category){
     $scope.currentCategory = category;
     $scope.loadPodcasts($scope.userId, category.id);
