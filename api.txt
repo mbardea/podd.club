@@ -1,0 +1,2 @@
+curl -X POST -d "name=John Gray" -d "email=jgray@gmail.com" -d "password=secret" http://localhost:3000/api/users
+curl http://localhost:3000/api/users

@@ -1,16 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"path"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -18,32 +13,14 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	"github.com/martini-contrib/render"
+	"github.com/martini-contrib/sessions"
+	"github.com/mbardea/podd.club/auth"
+	"github.com/mbardea/podd.club/downloader"
 	"github.com/mbardea/podd.club/logger"
 	"github.com/mbardea/podd.club/model"
 	"github.com/mbardea/podd.club/rss"
 	"github.com/mbardea/podd.club/util"
 )
-
-// type DownloadRequest struct {
-// 	Url string
-// }
-//
-
-const (
-	MEDIA_BASE_DIR = "media"
-)
-
-func mediaDirName(userId int64) string {
-	return path.Join(MEDIA_BASE_DIR, fmt.Sprintf("%d", userId))
-}
-
-func mediaAudioFileName(userId int64, podcastId int64) string {
-	return path.Join(mediaDirName(userId), fmt.Sprintf("%d.mp3", podcastId))
-}
-
-func mediaMetaFileName(userId int64, podcastId int64) string {
-	return path.Join(mediaDirName(userId), fmt.Sprintf("%d.json", podcastId))
-}
 
 func testDb(db *gorm.DB) {
 	db.LogMode(true)
@@ -53,115 +30,14 @@ func testDb(db *gorm.DB) {
 	fmt.Printf("RSS here: User: %v \n", cat)
 }
 
-func runCommand(cmd *exec.Cmd) (bytes.Buffer, bytes.Buffer, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	stdout.Grow(1000)
-	stderr.Grow(1000)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		logger.Errorf("Command failed: %v", cmd)
-	}
-	return stdout, stderr, err
-}
-
-func downloadWorker(job *model.DownloadJob) {
-	url := job.Url
-	db := job.Db
-
-	logger.Infof("Downloading from URL: %s", job.Url)
-
-	var err error
-	tmpDir, err := ioutil.TempDir("", "ydownload")
-	if err != nil {
-		log.Panicf("Could not create temporary directory")
-	}
-	name := path.Join(tmpDir, "audio")
-	origAudioFile := name + ".m4a"
-	convertedAudioFile := name + ".mp3"
-	metaFileName := path.Join(tmpDir, "audio.info.json")
-
-	cmd := exec.Command("youtube-dl",
-		"-x", "--audio-format=m4a",
-		"-o", origAudioFile,
-		"--write-info-json", url)
-
-	_, stderr, err := runCommand(cmd)
-	if err != nil {
-		log.Printf("Download Failed: %s: %s, %s", url, err, stderr.String())
-		return
-	}
-
-	cmd = exec.Command("avconv",
-		"-i", origAudioFile,
-		"-b", "64k",
-		convertedAudioFile)
-
-	_, stderr, err = runCommand(cmd)
-	if err != nil {
-		log.Printf("MP3 Conversion failed: %s - %s: %s", convertedAudioFile, err, stderr.String())
-		return
-	}
-
-	var metaBuffer []byte
-	metaFile := "out.info.json"
-	metaBuffer, err = ioutil.ReadFile(metaFileName)
-	if err != nil {
-		log.Printf("Could not read file %s", metaFile)
-		return
-	}
-	var downloadMeta model.DownloadMeta
-	err = json.Unmarshal(metaBuffer, &downloadMeta)
-	if err != nil {
-		log.Printf("Could not parse download meta Json")
-		return
-	}
-
-	podcast := model.Podcast{
-		UserId:           job.UserId,
-		CategoryId:       job.CategoryId,
-		SourceUrl:        job.Url,
-		Title:            downloadMeta.Title,
-		Description:      downloadMeta.Description,
-		Duration:         downloadMeta.Duration,
-		Thumbnail:        downloadMeta.Thumbnail,
-		DownloadMetadata: string(metaBuffer)}
-
-	db.Save(&podcast)
-
-	// Move file in the media directory
-	baseDir := mediaDirName(podcast.UserId)
-	err = os.MkdirAll(baseDir, os.ModePerm)
-	if err != nil {
-		log.Printf("Could not create directory %s", baseDir)
-	}
-	newAudioFileName := mediaAudioFileName(podcast.UserId, podcast.Id)
-	err = os.Rename(convertedAudioFile, newAudioFileName)
-	if err != nil {
-		log.Printf("Could not move media file into %s", newAudioFileName)
-		return
-	}
-	newMetaFileName := mediaMetaFileName(podcast.UserId, podcast.Id)
-	err = os.Rename(metaFileName, newMetaFileName)
-	if err != nil {
-		log.Printf("Could not move meta file name to %s", newMetaFileName)
-		return
-	}
-
-	// Update the audio file size in the DB
-	stat, err := os.Stat(newAudioFileName)
-	if err != nil {
-		log.Printf("Could not read stas for audio file %s", newAudioFileName)
-		return
-	}
-	podcast.Size = stat.Size()
-	db.Save(&podcast)
+func httpError(r render.Render, statusCode int, msg string) {
+	logger.Errorf(msg, "")
+	debug.PrintStack()
+	r.Data(statusCode, []byte(msg))
 }
 
 func main() {
+	auth.InitRandom()
 	m := martini.Classic()
 
 	var db gorm.DB
@@ -177,9 +53,8 @@ func main() {
 	m.Use(render.Renderer())
 	m.Use(martini.Static("ui"))
 
-	m.Get("/", func() string {
-		return "Hello world!"
-	})
+	store := sessions.NewCookieStore([]byte("234./2kdf@#.HL"))
+	m.Use(sessions.Sessions("session", store))
 
 	m.Get("/rss/:category_id", func(w http.ResponseWriter, p martini.Params, r render.Render, db *gorm.DB) {
 		var category model.Category
@@ -218,6 +93,49 @@ func main() {
 		var users []model.SimpleUser
 		db.Find(&users)
 		r.JSON(200, users)
+	})
+
+	m.Post("/api/users", func(p martini.Params, req *http.Request, r render.Render, db *gorm.DB) {
+		name := req.PostFormValue("name")
+		email := req.PostFormValue("email")
+		password := req.PostFormValue("password")
+
+		var users []model.User
+		q := db.Where("email = ?", email).Find(&users)
+		if !q.RecordNotFound() {
+			httpError(r, http.StatusBadRequest, "Email already exists.")
+			return
+		}
+		user := &model.User{
+			Name:     name,
+			Email:    email,
+			Password: auth.MakePassword(password),
+		}
+		db.Save(user)
+	})
+
+	m.Put("/api/users/login", func(p martini.Params, req *http.Request, r render.Render, db *gorm.DB) {
+		email := req.PostFormValue("email")
+		password := req.PostFormValue("password")
+
+		user := &model.User{}
+		q := db.Where("email = ?", email).Find(user)
+		if q.RecordNotFound() {
+			r.Error(http.StatusNotFound)
+			return
+		}
+
+		verified, err := auth.CheckPassword(password, user.Password)
+		if err != nil {
+			logger.Errorf("Error checking password: %s", err)
+			r.Error(http.StatusInternalServerError)
+			return
+		}
+		if verified {
+			r.Status(http.StatusOK)
+		} else {
+			r.Status(http.StatusUnauthorized)
+		}
 	})
 
 	m.Get("/api/users/:user_id/categories", func(p martini.Params, r render.Render, db *gorm.DB) {
@@ -276,8 +194,8 @@ func main() {
 			return
 		}
 
-		audioFile := mediaAudioFileName(podcast.UserId, podcast.Id)
-		metaFile := mediaMetaFileName(podcast.UserId, podcast.Id)
+		audioFile := downloader.MediaAudioFileName(podcast.UserId, podcast.Id)
+		metaFile := downloader.MediaMetaFileName(podcast.UserId, podcast.Id)
 
 		query = db.Where("id = ? ", podcastId).Delete(podcast)
 		if query.Error != nil {
@@ -376,7 +294,7 @@ func main() {
 			Url:        url,
 			Db:         db}
 
-		go downloadWorker(job)
+		go downloader.DownloadWorker(job)
 
 		// out := stdout.String()
 		// out := fmt.Sprintf("%v", downloadMeta)
