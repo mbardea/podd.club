@@ -2,7 +2,7 @@ package auth
 
 import (
 	"crypto/md5"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -45,7 +45,7 @@ func MakePassword(text string) string {
 	for i := range salt {
 		salt[i] = byte(rand.Uint32())
 	}
-	stringSalt := base64.StdEncoding.EncodeToString(salt[:])
+	stringSalt := hex.EncodeToString(salt[:])
 
 	hash := md5.Sum([]byte(stringSalt + text))
 	return EncodePassword("md5", stringSalt, hash[:])
@@ -62,10 +62,9 @@ func ParsePassword(encoded string) (rscheme string, rsalt string, err error) {
 }
 
 func EncodePassword(scheme string, salt string, hash []byte) string {
-	b64 := base64.StdEncoding
 	return scheme +
 		FIELD_SEPARATOR +
 		salt +
 		FIELD_SEPARATOR +
-		b64.EncodeToString(hash)
+		hex.EncodeToString(hash)
 }
