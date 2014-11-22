@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-
-	"github.com/jinzhu/gorm"
 	"github.com/mbardea/podd.club/logger"
 	"github.com/mbardea/podd.club/model"
 )
@@ -29,14 +27,6 @@ func MediaAudioFileName(userId int64, podcastId int64) string {
 
 func MediaMetaFileName(userId int64, podcastId int64) string {
 	return path.Join(MediaDirName(userId), fmt.Sprintf("%d.json", podcastId))
-}
-
-func testDb(db *gorm.DB) {
-	db.LogMode(true)
-	var cat model.Category
-	db.First(&cat, 1)
-
-	fmt.Printf("RSS here: User: %v \n", cat)
 }
 
 func runCommand(cmd *exec.Cmd) (bytes.Buffer, bytes.Buffer, error) {

@@ -2,12 +2,14 @@ package model
 
 import "github.com/jinzhu/gorm"
 
+// Category DB structure. Podcast category. User has categories has podcasts.
 type Category struct {
 	Id     int64  `primaryKey:"yes" json:"id"`
 	UserId int64  `json:"user_id"`
 	Name   string `json:"name"`
 }
 
+// TableName overrides the name of the DB table
 func (c Category) TableName() string {
 	return "categories"
 }
