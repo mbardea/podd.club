@@ -67,7 +67,7 @@ func main() {
 		}
 
 		var podcasts []model.Podcast = []model.Podcast{}
-		query = db.Where("user_id = ? and category_id = ?", category.UserId, category.Id).Find(&podcasts)
+		query = db.Where("user_id = ? and category_id = ? order by id", category.UserId, category.Id).Find(&podcasts)
 		if query.Error != nil && !query.RecordNotFound() {
 			logger.Errorf("Error: %v", query.Error)
 			r.Status(http.StatusInternalServerError)
@@ -163,7 +163,7 @@ func main() {
 		userId := string(p["user_id"])
 		categoryId := string(p["category_id"])
 		var podcasts []model.SimplePodcast = []model.SimplePodcast{}
-		query := db.Where("user_id = ? and category_id = ?", userId, categoryId).Find(&podcasts)
+		query := db.Where("user_id = ? and category_id = ? order by id", userId, categoryId).Find(&podcasts)
 		if query.Error != nil && !query.RecordNotFound() {
 			logger.Errorf("Error: %v", query.Error)
 			r.Status(http.StatusInternalServerError)
